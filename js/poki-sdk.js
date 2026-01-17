@@ -216,7 +216,7 @@
       t && (a = `poki-sdk-kids-${n}.js`),
       o && (a = `poki-sdk-playground-${n}.js`),
       i && (a = `poki-sdk-hoist-${n}.js`),
-      `${a}`
+      `/js/${a}`
     );
   })(),
     r = document.createElement("script");
