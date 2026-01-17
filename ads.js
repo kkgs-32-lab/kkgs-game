@@ -1,4 +1,3 @@
-window.pokiDebug = true;
 (() => {
     const applyOverride = (sdk) => {
         if (!sdk) return;
