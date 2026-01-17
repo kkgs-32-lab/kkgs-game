@@ -1,3 +1,4 @@
+window.pokiDebug = true;
 (() => {
     const applyOverride = (sdk) => {
         if (!sdk) return;
@@ -49,4 +50,3 @@
         setInterval(() => applyOverride(window.PokiSDK), 500);
     }
 })();
-window.pokiDebug = true;
