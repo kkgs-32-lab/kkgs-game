@@ -6,6 +6,3 @@ compatibility_date = "2024-10-01"
 directory = "main"
 binding = "ASSETS"
 
-[[routes]]
-pattern = "xn--eckp4axf2ba4m.net/*"
-zone_name = "xn--eckp4axf2ba4m.net"
