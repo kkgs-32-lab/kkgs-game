@@ -7,5 +7,5 @@ directory = "main"
 binding = "ASSETS"
 
 [[routes]]
-pattern = "サスペンション.net/*"
-zone_name = "サスペンション.net"
+pattern = "xn--eckp4axf2ba4m.net/*"
+zone_name = "xn--eckp4axf2ba4m.net"
