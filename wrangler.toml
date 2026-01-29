@@ -1,0 +1,11 @@
+name = "game"
+main = "worker.js"
+compatibility_date = "2024-10-01"
+
+[assets]
+directory = "../public"
+binding = "ASSETS"
+
+[[routes]]
+pattern = "サスペンション.net/*"
+zone_name = "サスペンション.net"
