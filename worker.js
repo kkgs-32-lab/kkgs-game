@@ -11,6 +11,19 @@ function notFound(request) {
 }
 
 export default {
+
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    // もし http で来たら https にリダイレクトさせる
+    if (url.protocol === "http:") {
+      url.protocol = "https:";
+      return Response.redirect(url.toString(), 301);
+    }
+
+    return env.ASSETS.fetch(request);
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
