@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Storage Saver</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        body { background-color: #f5f5f5; min-height: 100vh; padding-top: 2rem; }
+        .container { max-width: 600px; }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <div class="box">
+                <h1 class="title has-text-centered">JSON Saver</h1>
+                
+                <div class="field">
+                    <label class="label">保存したいデータ (JSON形式)</label>
+                    <div class="control">
+                        <textarea id="jsonInput" class="textarea" placeholder='{"id": 1, "name": "けーすけ"}' rows="5"></textarea>
+                    </div>
+                </div>
+
+                <div class="buttons is-centered">
+                    <button id="saveLocalBtn" class="button is-primary">LocalStorageに保存</button>
+                    <button id="saveIdbBtn" class="button is-link">IndexedDBに保存</button>
+                </div>
+
+                <hr>
+
+                <div class="content">
+                    <p class="is-size-7 has-text-grey">※コンソールを開くと保存された中身が見れるよ！</p>
+                    <div id="status" class="notification is-light is-hidden"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const jsonInput = document.getElementById('jsonInput');
+        const status = document.getElementById('status');
+
+        // メッセージ表示用
+        function showStatus(msg, type = 'is-success') {
+            status.textContent = msg;
+            status.className = `notification is-light ${type}`;
+            status.classList.remove('is-hidden');
+        }
+
+        // --- LocalStorage 保存処理 ---
+        document.getElementById('saveLocalBtn').onclick = () => {
+            try {
+                const data = JSON.parse(jsonInput.value);
+                localStorage.setItem('my_json_data', JSON.stringify(data));
+                showStatus('LocalStorageに保存したよ！');
+                console.log('LocalStorage:', data);
+            } catch (e) {
+                showStatus('JSONの形式が正しくないみたい...', 'is-danger');
+            }
+        };
+
+        // --- IndexedDB 保存処理 ---
+        document.getElementById('saveIdbBtn').onclick = () => {
+            try {
+                const data = JSON.parse(jsonInput.value);
+                const request = indexedDB.open("SimpleDB", 1);
+
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains("store")) {
+                        db.createObjectStore("store", { keyPath: "id" });
+                    }
+                };
+
+                request.onsuccess = (e) => {
+                    const db = e.target.result;
+                    const tx = db.transaction("store", "readwrite");
+                    tx.objectStore("store").put({ id: "latest", content: data });
+                    showStatus('IndexedDBに保存したよ！');
+                    console.log('IndexedDB:', data);
+                };
+            } catch (e) {
+                showStatus('JSONの形式を確認してね。', 'is-danger');
+            }
+        };
+    </script>
+</body>
+</html>
