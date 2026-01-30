@@ -3,117 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON Full Exporter</title>
+    <title>JSON Storage Master</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        body { background-color: #fcfcfc; }
+        .box { border-radius: 12px; }
+    </style>
 </head>
 <body>
     <section class="section">
-        <div class="container" style="max-width: 600px;">
+        <div class="container" style="max-width: 700px;">
+            <h1 class="title has-text-centered">📦 Storage Master</h1>
+            
             <div class="box">
-                <h1 class="title is-4 has-text-centered">All Data Exporter</h1>
-                
+                <h2 class="subtitle is-5">1. データを作成・保存</h2>
                 <div class="field">
-                    <label class="label">テスト入力 (JSON)</label>
-                    <textarea id="jsonInput" class="textarea" rows="2">{"msg": "こんにちは！"}</textarea>
+                    <textarea id="jsonInput" class="textarea" rows="3">{"user": "けーすけ", "status": "active"}</textarea>
                 </div>
-                <div class="buttons is-centered">
-                    <button onclick="saveToBoth()" class="button is-small is-dark">両方に適当に保存</button>
+                <div class="buttons">
+                    <button onclick="saveToAll()" class="button is-dark is-fullwidth">LocalStorage & IndexedDB に保存</button>
                 </div>
-
-                <hr>
-
-                <div class="columns is-multiline">
-                    <div class="column is-12">
-                        <button onclick="downloadAllLocal()" class="button is-success is-fullwidth">
-                            <strong>LocalStorage 全出力</strong>
-                        </button>
-                    </div>
-                    <div class="column is-12">
-                        <button onclick="downloadAllIDB()" class="button is-info is-fullwidth">
-                            <strong>IndexedDB 全出力</strong>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="status" class="notification is-light is-hidden mt-3"></div>
             </div>
+
+            <div class="columns">
+                <div class="column">
+                    <div class="box" style="height: 100%;">
+                        <h2 class="subtitle is-5">2. ダウンロード</h2>
+                        <p class="is-size-7 mb-3">全てのデータを1つのJSONに統合して書き出します。</p>
+                        <button onclick="exportAllData()" class="button is-success is-fullwidth">
+                            <strong>統合JSONをDL</strong>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="column">
+                    <div class="box" style="height: 100%;">
+                        <h2 class="subtitle is-5">3. アップロード</h2>
+                        <p class="is-size-7 mb-3">JSONファイルを読み込んでブラウザに復元します。</p>
+                        <div class="file is-info is-centered">
+                            <label class="file-label">
+                                <input class="file-input" type="file" id="importFile" onchange="importAllData(event)">
+                                <span class="file-cta">
+                                    <span class="file-label">ファイルを選択...</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="status" class="notification is-light is-hidden"></div>
         </div>
     </section>
 
     <script>
-        const dbName = "FullExportDB";
-        const storeName = "allData";
+        const DB_NAME = "IntegratedDB";
+        const STORE_NAME = "mainStore";
 
-        // メッセージ表示
-        function notify(text) {
+        function notify(text, type='is-primary') {
             const status = document.getElementById('status');
             status.textContent = text;
+            status.className = `notification is-light ${type} mt-3`;
             status.classList.remove('is-hidden');
-            setTimeout(() => status.classList.add('is-hidden'), 3000);
+            setTimeout(() => status.classList.add('is-hidden'), 4000);
         }
 
-        // ダウンロード実行（共通）
-        function downloadFile(data, filename) {
-            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        // --- 保存処理 ---
+        async function saveToAll() {
+            let data;
+            try { data = JSON.parse(document.getElementById('jsonInput').value); } catch { return alert('JSONが正しくないよ'); }
+
+            const timestamp = Date.now();
+            // LocalStorage
+            localStorage.setItem(`data_${timestamp}`, JSON.stringify(data));
+
+            // IndexedDB
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, "readwrite");
+            tx.objectStore(STORE_NAME).add({ content: data, time: new Date().toISOString() });
+            notify('両方のストレージにデータを追加したよ！');
+        }
+
+        // --- ダウンロード（エクスポート） ---
+        async function exportAllData() {
+            const combinedData = {
+                localStorage: {},
+                indexedDB: []
+            };
+
+            // LS収集
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                combinedData.localStorage[k] = localStorage.getItem(k);
+            }
+
+            // IDB収集
+            const db = await openDB();
+            const allIDB = await new Promise(res => {
+                const tx = db.transaction(STORE_NAME, "readonly");
+                tx.objectStore(STORE_NAME).getAll().onsuccess = e => res(e.target.result);
+            });
+            combinedData.indexedDB = allIDB;
+
+            // ファイル出力
+            const blob = new Blob([JSON.stringify(combinedData, null, 2)], {type: 'application/json'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = filename; a.click();
-            URL.revokeObjectURL(url);
+            a.href = url; a.download = `backup_${Date.now()}.json`; a.click();
+            notify('全てのデータを1つのファイルにまとめたよ！');
         }
 
-        // --- 1. LocalStorage 全出力 ---
-        function downloadAllLocal() {
-            const allData = {};
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                const value = localStorage.getItem(key);
+        // --- アップロード（インポート） ---
+        function importAllData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
                 try {
-                    // JSONならパースして保存、そうでなければ文字列のまま
-                    allData[key] = JSON.parse(value);
-                } catch {
-                    allData[key] = value;
+                    const imported = JSON.parse(e.target.result);
+
+                    // LocalStorage復元
+                    if (imported.localStorage) {
+                        Object.entries(imported.localStorage).forEach(([k, v]) => localStorage.setItem(k, v));
+                    }
+
+                    // IndexedDB復元
+                    if (imported.indexedDB) {
+                        const db = await openDB();
+                        const tx = db.transaction(STORE_NAME, "readwrite");
+                        const store = tx.objectStore(STORE_NAME);
+                        imported.indexedDB.forEach(item => {
+                            // IDが重複しないようにdeleteしてからaddするか、そのままput
+                            store.put(item); 
+                        });
+                    }
+                    notify('インポート完了！ページを更新して確認してね。', 'is-success');
+                } catch (err) {
+                    notify('ファイルの読み込みに失敗しちゃった。', 'is-danger');
                 }
-            }
-            downloadFile(allData, 'all_local_storage.json');
-            notify('LocalStorageの全データを書き出したよ！');
+            };
+            reader.readAsText(file);
         }
 
-        // --- 2. IndexedDB 全出力 ---
-        function downloadAllIDB() {
-            const req = indexedDB.open(dbName, 1);
-            req.onupgradeneeded = e => e.target.result.createObjectStore(storeName, {keyPath: "id", autoIncrement: true});
-            
-            req.onsuccess = e => {
-                const db = e.target.result;
-                const transaction = db.transaction(storeName, "readonly");
-                const store = transaction.objectStore(storeName);
-                
-                // 全件取得
-                const getAllReq = store.getAll();
-                getAllReq.onsuccess = () => {
-                    downloadFile(getAllReq.result, 'all_indexed_db.json');
-                    notify('IndexedDBの全データを書き出したよ！');
-                };
-            };
-        }
-
-        // テスト用：保存処理
-        function saveToBoth() {
-            const val = document.getElementById('jsonInput').value;
-            let data;
-            try { data = JSON.parse(val); } catch { return alert('JSONが正しくないよ'); }
-
-            // LocalStorageにランダムなキーで保存
-            localStorage.setItem("test_" + Date.now(), JSON.stringify(data));
-
-            // IndexedDBに保存
-            const req = indexedDB.open(dbName, 1);
-            req.onupgradeneeded = e => e.target.result.createObjectStore(storeName, {keyPath: "id", autoIncrement: true});
-            req.onsuccess = e => {
-                const db = e.target.result;
-                db.transaction(storeName, "readwrite").objectStore(storeName).add({content: data, timestamp: new Date()});
-                notify('両方にテストデータを追加したよ！');
-            };
+        // DBオープン用ヘルパー
+        function openDB() {
+            return new Promise((resolve) => {
+                const req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = e => e.target.result.createObjectStore(STORE_NAME, {keyPath: "id", autoIncrement: true});
+                req.onsuccess = e => resolve(e.target.result);
+            });
         }
     </script>
 </body>
